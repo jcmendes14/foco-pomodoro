@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foco Pomodoro</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --text: #2b2622;
+    --muted: #8a8079;
+    --line: #ebe4db;
+    --accent: #e0563b;
+    --accent-soft: #fbe3dc;
+    --break: #3b8f6e;
+    --break-soft: #dcefe6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1917;
+      --card: #252220;
+      --text: #f1ebe4;
+      --muted: #9d948c;
+      --line: #36312d;
+      --accent: #f07a5f;
+      --accent-soft: #3d2721;
+      --break: #5cc198;
+      --break-soft: #1f3530;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+    min-height: 100vh;
+  }
+  main { width: 100%; max-width: 440px; }
+  h1 { font-size: 1.1rem; margin: 0 0 20px; font-weight: 600; letter-spacing: .02em; }
+  h1 span { color: var(--muted); font-weight: 400; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .modes { display: flex; gap: 6px; justify-content: center; margin-bottom: 20px; }
+  .modes button {
+    border: none; background: transparent; color: var(--muted);
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; font: inherit; font-size: .9rem;
+  }
+  .modes button.active { background: var(--mode-soft); color: var(--mode); font-weight: 600; }
+
+  .ring { position: relative; width: 240px; height: 240px; margin: 0 auto; }
+  .ring svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+  .ring circle { fill: none; stroke-width: 10; }
+  .ring .track { stroke: var(--line); }
+  .ring .progress { stroke: var(--mode); stroke-linecap: round; transition: stroke-dashoffset .4s linear; }
+  .time {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .time strong { font-size: 3.4rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .time small { color: var(--muted); margin-top: 4px; font-size: .85rem; max-width: 170px; text-align: center;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    padding: 11px 18px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 500;
+  }
+  .btn.primary { background: var(--mode); border-color: var(--mode); color: #fff; min-width: 120px; }
+  .btn:active { transform: scale(.97); }
+
+  .dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; }
+  .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+  .dots i.on { background: var(--accent); }
+  .stats { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 8px; }
+
+  .tasks h2 { font-size: .95rem; margin: 0 0 12px; }
+  .add { display: flex; gap: 8px; margin-bottom: 12px; }
+  .add input {
+    flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font: inherit;
+  }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 10px; cursor: pointer;
+  }
+  li:hover { background: var(--bg); }
+  li.current { background: var(--accent-soft); }
+  li input { accent-color: var(--accent); width: 17px; height: 17px; flex-shrink: 0; }
+  li .label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  li.done .label { text-decoration: line-through; color: var(--muted); }
+  li .count { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+  li .del { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
+  .empty { color: var(--muted); font-size: .9rem; text-align: center; padding: 8px 0; }
+  .hint { color: var(--muted); font-size: .78rem; text-align: center; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🍅 Foco Pomodoro <span>· um passo de cada vez</span></h1>
+
+  <section class="card">
+    <div class="modes">
+      <button data-mode="focus">Foco</button>
+      <button data-mode="short">Pausa curta</button>
+      <button data-mode="long">Pausa longa</button>
+    </div>
+    <div class="ring">
+      <svg viewBox="0 0 240 240">
+        <circle class="track" cx="120" cy="120" r="110"/>
+        <circle class="progress" cx="120" cy="120" r="110"/>
+      </svg>
+      <div class="time">
+        <strong id="clock">25:00</strong>
+        <small id="currentTask">Escolha uma tarefa</small>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="startBtn">Iniciar</button>
+      <button class="btn" id="resetBtn" title="Reiniciar (R)">↺</button>
+      <button class="btn" id="skipBtn" title="Pular (S)">⏭</button>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="card tasks">
+    <h2>Tarefas</h2>
+    <form class="add" id="addForm">
+      <input id="taskInput" placeholder="O que você vai fazer?" autocomplete="off" maxlength="120">
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <ul id="taskList"></ul>
+    <p class="hint">Clique numa tarefa para focar nela · Espaço inicia/pausa</p>
+  </section>
+</main>
+
+<script>
+const MODES = {
+  focus: { label: 'Foco',        min: 25, color: '--accent', soft: '--accent-soft' },
+  short: { label: 'Pausa curta', min: 5,  color: '--break',  soft: '--break-soft' },
+  long:  { label: 'Pausa longa', min: 15, color: '--break',  soft: '--break-soft' },
+};
+const KEY = 'foco-pomodoro-v1';
+const today = new Date().toDateString();
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
+}
+const saved = load();
+const state = {
+  tasks: saved.tasks || [],
+  currentId: saved.currentId || null,
+  cycle: saved.cycle || 0,                         // focos concluídos no ciclo atual (0–3)
+  todayCount: saved.day === today ? saved.todayCount || 0 : 0,
+  mode: 'focus',
+  remaining: MODES.focus.min * 60,
+  running: false,
+  endAt: 0,
+};
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({
+      tasks: state.tasks, currentId: state.currentId, cycle: state.cycle,
+      todayCount: state.todayCount, day: today,
+    }));
+  } catch {}
+}
+
+const $ = id => document.getElementById(id);
+const progress = document.querySelector('.progress');
+const CIRC = 2 * Math.PI * 110;
+progress.style.strokeDasharray = CIRC;
+let timer = null;
+
+function fmt(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function render() {
+  const m = MODES[state.mode];
+  const root = document.documentElement.style;
+  root.setProperty('--mode', `var(${m.color})`);
+  root.setProperty('--mode-soft', `var(${m.soft})`);
+
+  document.querySelectorAll('.modes button').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === state.mode));
+
+  $('clock').textContent = fmt(state.remaining);
+  progress.style.strokeDashoffset = CIRC * (1 - state.remaining / (m.min * 60));
+  $('startBtn').textContent = state.running ? 'Pausar' : (state.remaining < m.min * 60 ? 'Continuar' : 'Iniciar');
+  document.title = state.running ? `${fmt(state.remaining)} · ${m.label}` : 'Foco Pomodoro';
+
+  const cur = state.tasks.find(t => t.id === state.currentId);
+  $('currentTask').textContent = state.mode === 'focus' ? (cur ? cur.text : 'Escolha uma tarefa') : 'Respire um pouco ☕';
+
+  $('dots').innerHTML = [0, 1, 2, 3].map(i => `<i class="${i < state.cycle ? 'on' : ''}"></i>`).join('');
+  const mins = state.todayCount * MODES.focus.min;
+  $('stats').textContent = `Hoje: ${state.todayCount} pomodoro${state.todayCount === 1 ? '' : 's'} · ${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')} de foco`;
+
+  const list = $('taskList');
+  list.innerHTML = '';
+  if (!state.tasks.length) list.innerHTML = '<li class="empty">Nenhuma tarefa ainda — adicione uma acima.</li>';
+  for (const t of state.tasks) {
+    const li = document.createElement('li');
+    li.className = (t.done ? 'done ' : '') + (t.id === state.currentId ? 'current' : '');
+    li.innerHTML = `<input type="checkbox" ${t.done ? 'checked' : ''}>
+      <span class="label"></span><span class="count">${'🍅'.repeat(Math.min(t.pomos, 5))}${t.pomos > 5 ? '+' + (t.pomos - 5) : ''}</span>
+      <button class="del" title="Remover">×</button>`;
+    li.querySelector('.label').textContent = t.text;
+    li.querySelector('input').onclick = e => { e.stopPropagation(); t.done = !t.done; save(); render(); };
+    li.querySelector('.del').onclick = e => {
+      e.stopPropagation();
+      state.tasks = state.tasks.filter(x => x !== t);
+      if (state.currentId === t.id) state.currentId = null;
+      save(); render();
+    };
+    li.onclick = () => { state.currentId = t.id; save(); render(); };
+    list.appendChild(li);
+  }
+}
+
+function setMode(mode) {
+  stop();
+  state.mode = mode;
+  state.remaining = MODES[mode].min * 60;
+  render();
+}
+
+function start() {
+  state.running = true;
+  state.endAt = Date.now() + state.remaining * 1000;
+  timer = setInterval(tick, 250);
+  render();
+}
+function stop() {
+  state.running = false;
+  clearInterval(timer);
+  render();
+}
+function tick() {
+  const left = Math.max(0, Math.round((state.endAt - Date.now()) / 1000));
+  if (left !== state.remaining) { state.remaining = left; render(); }
+  if (left === 0) finish();
+}
+
+function finish() {
+  stop();
+  chime();
+  if (state.mode === 'focus') {
+    state.todayCount++;
+    state.cycle++;
+    const cur = state.tasks.find(t => t.id === state.currentId);
+    if (cur) cur.pomos++;
+    notify('Pomodoro concluído! 🍅', 'Hora de uma pausa.');
+    const next = state.cycle >= 4 ? 'long' : 'short';
+    if (state.cycle >= 4) state.cycle = 0;
+    save();
+    setMode(next);
+  } else {
+    notify('Pausa acabou', 'Bora voltar ao foco!');
+    setMode('focus');
+  }
+}
+
+function chime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880, 990].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = f; o.type = 'sine';
+      const t = ctx.currentTime + i * 0.22;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.55);
+    });
+  } catch {}
+}
+function notify(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body });
+}
+
+$('startBtn').onclick = () => {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  state.running ? stop() : start();
+};
+$('resetBtn').onclick = () => setMode(state.mode);
+$('skipBtn').onclick = () => { state.remaining = 0; state.endAt = Date.now(); finish(); };
+document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+
+$('addForm').onsubmit = e => {
+  e.preventDefault();
+  const text = $('taskInput').value.trim();
+  if (!text) return;
+  const t = { id: Date.now().toString(36), text, done: false, pomos: 0 };
+  state.tasks.push(t);
+  if (!state.currentId) state.currentId = t.id;
+  $('taskInput').value = '';
+  save(); render();
+};
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); $('startBtn').click(); }
+  if (e.key === 'r' || e.key === 'R') $('resetBtn').click();
+  if (e.key === 's' || e.key === 'S') $('skipBtn').click();
+});
+
+render();
+</script>
+</body>
+</html>
